@@ -5,11 +5,12 @@
 # Proprietary and confidential
 # Written by Peter Claydon
 #
-ModuleName = "zwave_binary_switch"
+ModuleName = "zwave_binary_sensor"
 
 import sys
 import time
 import os
+from pprint import pprint
 import logging
 from cbcommslib import CbAdaptor
 from cbconfig import *
@@ -82,30 +83,35 @@ class Adaptor(CbAdaptor):
         else:
             return "0"
 
-    def switch(self, onOrOff):
-        cmd = {"id": self.id,
-               "request": "post",
-               "address": self.addr,
-               "instance": "0",
-               "commandClass": "0x25",
-               "value": self.onOff(onOrOff)
-              }
-        self.sendZwaveMessage(cmd)
+    def onZwaveMessage(self, message):
+        logging.debug("%s %s onZwaveMessage, message: %s", ModuleName, self.id, str(message))
+        if message["content"] == "init":
+            cmd = {"id": self.id,
+                   "request": "get",
+                   "address": self.addr,
+                   "instance": "0",
+                   "commandClass": "48",
+                   "value": "1"
+                  }
+            self.sendZwaveMessage(cmd)
+        elif message["content"] == "parameter":
+            logging.debug("%s %s onZwaveMessage, data: %s", ModuleName, self.id, str(pprint(message["data"])))
+            level = message["data"]["level"]["value"]
+            logging.debug("%s %s onZwaveMessage, level: %s", ModuleName, self.id, level)
 
     def onAppInit(self, message):
-        #logging.debug("%s %s %s onAppInit, req = %s", ModuleName, self.id, self.friendly_name, message)
+        logging.debug("%s %s %s onAppInit, req = %s", ModuleName, self.id, self.friendly_name, message)
         resp = {"name": self.name,
                 "id": self.id,
                 "status": "ok",
-                "functions": [{"parameter": "switch",
-                               "type": "240V",
-                               "purpose": "heater"}],
+                "functions": [{"parameter": "binary_sensor",
+                               "type": "motion"}],
                 "content": "functions"}
         self.sendMessage(resp, message["id"])
         self.setState("running")
 
     def onAppCommand(self, message):
-        #logging.debug("%s %s %s onAppCommand, req = %s", ModuleName, self.id, self.friendly_name, message)
+        logging.debug("%s %s %s onAppCommand, req = %s", ModuleName, self.id, self.friendly_name, message)
         if "data" not in message:
             logging.warning("%s %s %s app message without data: %s", ModuleName, self.id, self.friendly_name, message)
         elif message["data"] != "on" and message["data"] != "off":
