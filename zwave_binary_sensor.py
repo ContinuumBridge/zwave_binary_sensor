@@ -5,7 +5,8 @@
 # Proprietary and confidential
 # Written by Peter Claydon
 #
-ModuleName = "zwave_binary_sensor"
+ModuleName              = "zwave_binary_sensor"
+BATTERY_CHECK_INTERVAL   = 300      # How often to check battery (secs)
 
 import sys
 import time
@@ -20,8 +21,9 @@ from twisted.internet import reactor
 class Adaptor(CbAdaptor):
     def __init__(self, argv):
         logging.basicConfig(filename=CB_LOGFILE,level=CB_LOGGING_LEVEL,format='%(asctime)s %(message)s')
-        self.status = "ok"
-        self.state = "stopped"
+        self.status =           "ok"
+        self.state =            "stopped"
+        self.apps =             {"binary_sensor": []}
         # super's __init__ must be called:
         #super(Adaptor, self).__init__(argv)
         CbAdaptor.__init__(self, argv)
@@ -62,29 +64,32 @@ class Adaptor(CbAdaptor):
                "data": data,
                "timeStamp": timeStamp}
         for a in self.apps[parameter]:
-            reactor.callFromThread(self.sendMessage, msg, a)
+            self.sendMessage(msg, a)
 
     def onStop(self):
         # Mainly caters for situation where adaptor is told to stop while it is starting
         pass
 
-    def checkAllProcessed(self, appID):
-        self.processedApps.append(appID)
-        found = True
-        for a in self.appInstances:
-            if a not in self.processedApps:
-                found = False
-        if found:
-            self.setState("inUse")
+    def checkBattery(self):
+        cmd = {"id": self.id,
+               "request": "post",
+               "address": self.addr,
+               "instance": "0",
+               "commandClass": "128",
+               "action": "Get",
+               "value": ""
+              }
+        self.sendZwaveMessage(cmd)
+        reactor.callLater(BATTERY_CHECK_INTERVAL, self.checkBattery)
 
-    def onOff(self, s):
-        if s == "on":
-            return "255"
-        else:
-            return "0"
+    def onOff(self, boolean):
+        if boolean:
+            return "on"
+        elif not boolean:
+            return "off"
 
     def onZwaveMessage(self, message):
-        logging.debug("%s %s onZwaveMessage, message: %s", ModuleName, self.id, str(message))
+        #logging.debug("%s %s onZwaveMessage, message: %s", ModuleName, self.id, str(message))
         if message["content"] == "init":
             cmd = {"id": self.id,
                    "request": "get",
@@ -94,30 +99,52 @@ class Adaptor(CbAdaptor):
                    "value": "1"
                   }
             self.sendZwaveMessage(cmd)
+            cmd = {"id": self.id,
+                   "request": "get",
+                   "address": self.addr,
+                   "instance": "0",
+                   "commandClass": "128",
+                   "value": "1"
+                  }
+            self.sendZwaveMessage(cmd)
+            reactor.callLater(10, self.checkBattery)
         elif message["content"] == "parameter":
-            logging.debug("%s %s onZwaveMessage, data: %s", ModuleName, self.id, str(pprint(message["data"])))
-            level = message["data"]["level"]["value"]
-            logging.debug("%s %s onZwaveMessage, level: %s", ModuleName, self.id, level)
+            try:
+                level = message["data"]["level"]["value"]
+                logging.debug("%s %s onZwaveMessage, level: %s", ModuleName, self.id, level)
+                self.sendParameter("binary_sensor", self.onOff(level), time.time())
+
+            except:
+                logging.debug("%s %s onZwaveMessage, no level", ModuleName, self.id)
 
     def onAppInit(self, message):
         logging.debug("%s %s %s onAppInit, req = %s", ModuleName, self.id, self.friendly_name, message)
         resp = {"name": self.name,
                 "id": self.id,
                 "status": "ok",
-                "functions": [{"parameter": "binary_sensor",
-                               "type": "motion"}],
+                "functions": [{"parameter": "binary_sensor"}],
                 "content": "functions"}
         self.sendMessage(resp, message["id"])
         self.setState("running")
+
+    def onAppRequest(self, message):
+        #logging.debug("%s %s %s onAppRequest, message = %s", ModuleName, self.id, self.friendly_name, message)
+        # Switch off anything that already exists for this app
+        for a in self.apps:
+            if message["id"] in self.apps[a]:
+                self.apps[a].remove(message["id"])
+        # Now update details based on the message
+        for f in message["functions"]:
+            if message["id"] not in self.apps[f["parameter"]]:
+                self.apps[f["parameter"]].append(message["id"])
+        #logging.debug("%s %s %s apps: %s", ModuleName, self.id, self.friendly_name, str(self.apps))
 
     def onAppCommand(self, message):
         logging.debug("%s %s %s onAppCommand, req = %s", ModuleName, self.id, self.friendly_name, message)
         if "data" not in message:
             logging.warning("%s %s %s app message without data: %s", ModuleName, self.id, self.friendly_name, message)
-        elif message["data"] != "on" and message["data"] != "off":
-            logging.warning("%s %s %s app switch state must be on or off: %s", ModuleName, self.id, self.friendly_name, message)
         else:
-            self.switch(message["data"])
+            logging.warning("%s %s %s This is a sensor. Message not understood: %s", ModuleName, self.id, self.friendly_name, message)
 
     def onConfigureMessage(self, config):
         """Config is based on what apps are to be connected.
