@@ -108,10 +108,10 @@ class Adaptor(CbAdaptor):
                   }
             self.sendZwaveMessage(cmd)
             reactor.callLater(10, self.checkBattery)
-        elif message["content"] == "parameter":
+        elif message["content"] == "data":
             try:
                 level = message["data"]["level"]["value"]
-                logging.debug("%s %s onZwaveMessage, level: %s", ModuleName, self.id, level)
+                #logging.debug("%s %s onZwaveMessage, level: %s", ModuleName, self.id, level)
                 self.sendParameter("binary_sensor", self.onOff(level), time.time())
 
             except:
@@ -128,7 +128,7 @@ class Adaptor(CbAdaptor):
         self.setState("running")
 
     def onAppRequest(self, message):
-        #logging.debug("%s %s %s onAppRequest, message = %s", ModuleName, self.id, self.friendly_name, message)
+        logging.debug("%s %s %s onAppRequest, message = %s", ModuleName, self.id, self.friendly_name, message)
         # Switch off anything that already exists for this app
         for a in self.apps:
             if message["id"] in self.apps[a]:
@@ -137,7 +137,7 @@ class Adaptor(CbAdaptor):
         for f in message["functions"]:
             if message["id"] not in self.apps[f["parameter"]]:
                 self.apps[f["parameter"]].append(message["id"])
-        #logging.debug("%s %s %s apps: %s", ModuleName, self.id, self.friendly_name, str(self.apps))
+        logging.debug("%s %s %s apps: %s", ModuleName, self.id, self.friendly_name, str(self.apps))
 
     def onAppCommand(self, message):
         logging.debug("%s %s %s onAppCommand, req = %s", ModuleName, self.id, self.friendly_name, message)
