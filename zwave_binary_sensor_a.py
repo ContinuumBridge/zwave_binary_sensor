@@ -40,12 +40,13 @@ class Adaptor(CbAdaptor):
                "state": self.state}
         self.sendManagerMessage(msg)
 
-    def sendParameter(self, parameter, data, timeStamp):
+    def sendCharacteristic(self, characteristic, data, timeStamp):
         msg = {"id": self.id,
-               "content": parameter,
+               "content": "characteristic",
+               "characteristic": characteristic,
                "data": data,
                "timeStamp": timeStamp}
-        for a in self.apps[parameter]:
+        for a in self.apps[characteristic]:
             self.sendMessage(msg, a)
 
     def checkBattery(self):
@@ -90,7 +91,7 @@ class Adaptor(CbAdaptor):
                 if message["commandClass"] == "48":
                     level = message["data"]["level"]["value"]
                     logging.debug("%s %s onZwaveMessage, level: %s", ModuleName, self.id, level)
-                    self.sendParameter("binary_sensor", self.onOff(level), time.time())
+                    self.sendCharacteristic("binary_sensor", self.onOff(level), time.time())
                 elif message["commandClass"] == "128":
                      battery = message["data"]["last"]["value"] 
                      logging.info("%s %s battery level: %s", ModuleName, self.id, battery)
@@ -106,8 +107,8 @@ class Adaptor(CbAdaptor):
         resp = {"name": self.name,
                 "id": self.id,
                 "status": "ok",
-                "functions": [{"parameter": "binary_sensor"}],
-                "content": "functions"}
+                "service": [{"characteristic": "binary_sensor", "interval": 0}],
+                "content": "service"}
         self.sendMessage(resp, message["id"])
         self.setState("running")
 
@@ -118,9 +119,9 @@ class Adaptor(CbAdaptor):
             if message["id"] in self.apps[a]:
                 self.apps[a].remove(message["id"])
         # Now update details based on the message
-        for f in message["functions"]:
-            if message["id"] not in self.apps[f["parameter"]]:
-                self.apps[f["parameter"]].append(message["id"])
+        for f in message["service"]:
+            if message["id"] not in self.apps[f["characteristic"]]:
+                self.apps[f["characteristic"]].append(message["id"])
         logging.debug("%s %s %s apps: %s", ModuleName, self.id, self.friendly_name, str(self.apps))
 
     def onAppCommand(self, message):
@@ -139,4 +140,4 @@ class Adaptor(CbAdaptor):
         self.setState("starting")
 
 if __name__ == '__main__':
-    adaptor = Adaptor(sys.argv)
+    Adaptor(sys.argv)
