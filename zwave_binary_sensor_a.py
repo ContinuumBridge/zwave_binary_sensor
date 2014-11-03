@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# tempo.py
+# zwave_binary_sensor_a.py
 # Copyright (C) ContinuumBridge Limited, 2014 - All Rights Reserved
 # Unauthorized copying of this file, via any medium is strictly prohibited
 # Proprietary and confidential
 # Written by Peter Claydon
 #
 ModuleName              = "zwave_binary_sensor"
-BATTERY_CHECK_INTERVAL   = 600      # How often to check battery (secs)
+BATTERY_CHECK_INTERVAL   = 1800      # How often to check battery (secs)
 
 import sys
 import time
@@ -23,7 +23,9 @@ class Adaptor(CbAdaptor):
         logging.basicConfig(filename=CB_LOGFILE,level=CB_LOGGING_LEVEL,format='%(asctime)s %(message)s')
         self.status =           "ok"
         self.state =            "stopped"
-        self.apps =             {"binary_sensor": []}
+        self.apps =             {"binary_sensor": [],
+                                 "battery": [],
+                                 "connected": []}
         # super's __init__ must be called:
         #super(Adaptor, self).__init__(argv)
         CbAdaptor.__init__(self, argv)
