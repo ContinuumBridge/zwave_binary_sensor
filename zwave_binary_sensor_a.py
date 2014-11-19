@@ -6,7 +6,7 @@
 # Written by Peter Claydon
 #
 ModuleName              = "zwave_binary_sensor"
-BATTERY_CHECK_INTERVAL   = 1800      # How often to check battery (secs)
+BATTERY_CHECK_INTERVAL   = 21600      # How often to check battery (secs) - 6 hours
 
 import sys
 import time
@@ -24,8 +24,7 @@ class Adaptor(CbAdaptor):
         self.status =           "ok"
         self.state =            "stopped"
         self.apps =             {"binary_sensor": [],
-                                 "battery": [],
-                                 "connected": []}
+                                 "battery": []}
         # super's __init__ must be called:
         #super(Adaptor, self).__init__(argv)
         CbAdaptor.__init__(self, argv)
@@ -36,7 +35,7 @@ class Adaptor(CbAdaptor):
             self.state == "error"
         elif action == "clear_error":
             self.state = "running"
-        logging.debug("%s %s state = %s", ModuleName, self.id, self.state)
+        #logging.debug("%s %s state = %s", ModuleName, self.id, self.state)
         msg = {"id": self.id,
                "status": "state",
                "state": self.state}
@@ -87,7 +86,7 @@ class Adaptor(CbAdaptor):
                    "commandClass": "128"
                   }
             self.sendZwaveMessage(cmd)
-            reactor.callLater(10, self.checkBattery)
+            reactor.callLater(60, self.checkBattery)
         elif message["content"] == "data":
             try:
                 if message["commandClass"] == "48":
@@ -101,21 +100,26 @@ class Adaptor(CbAdaptor):
                             "status": "battery_level",
                             "battery_level": battery}
                      self.sendManagerMessage(msg)
-            except:
-                logging.debug("%s %s onZwaveMessage, no level", ModuleName, self.id)
+                     self.sendCharacteristic("battery", battery, time.time())
+            except Exception as inst:
+                logging.warning("%s onZwaveMessage. Caught error on: %s", ModuleName, str(message))
+                logging.warning("%s Exception: %s %s", ModuleName, type(inst), str(inst.args))
 
     def onAppInit(self, message):
         logging.debug("%s %s %s onAppInit, req = %s", ModuleName, self.id, self.friendly_name, message)
         resp = {"name": self.name,
                 "id": self.id,
                 "status": "ok",
-                "service": [{"characteristic": "binary_sensor", "interval": 0}],
+                "service": [
+                            {"characteristic": "binary_sensor", "interval": 0},
+                            {"characteristic": "battery", "interval": 0}
+                           ],
                 "content": "service"}
         self.sendMessage(resp, message["id"])
         self.setState("running")
 
     def onAppRequest(self, message):
-        logging.debug("%s %s %s onAppRequest, message = %s", ModuleName, self.id, self.friendly_name, message)
+        #logging.debug("%s %s %s onAppRequest, message = %s", ModuleName, self.id, self.friendly_name, message)
         # Switch off anything that already exists for this app
         for a in self.apps:
             if message["id"] in self.apps[a]:
@@ -134,11 +138,7 @@ class Adaptor(CbAdaptor):
             logging.warning("%s %s %s This is a sensor. Message not understood: %s", ModuleName, self.id, self.friendly_name, message)
 
     def onConfigureMessage(self, config):
-        """Config is based on what apps are to be connected.
-            May be called again if there is a new configuration, which
-            could be because a new app has been added.
-        """
-        logging.debug("%s onConfigureMessage, config: %s", ModuleName, config)
+        #logging.debug("%s onConfigureMessage, config: %s", ModuleName, config)
         self.setState("starting")
 
 if __name__ == '__main__':
