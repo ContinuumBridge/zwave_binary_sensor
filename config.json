@@ -2,10 +2,10 @@
     "exe": "zwave_binary_sensor.py", 
     "protocol": "zwave", 
     "name": "Vision Security 258 8193", 
-    "device_resource": "/api/bridge/v1/device/16/", 
-    "url": "https://github.com/ContinuumBridge/zwave_binary_sensor/archive/v0.2.3.tar.gz", 
-    "version": "0.2.3", 
+    "device_resource": "/api/bridge/v1/device/16", 
+    "url": "https://github.com/ContinuumBridge/zwave_binary_sensor/archive/v1.0.0.tar.gz", 
+    "version": "1.0.0", 
     "provider": "ContinuumBridge", 
-    "adaptor_resource": "/api/bridge/v1/adaptor/4/", 
+    "adaptor_resource": "/api/bridge/v1/adaptor/4", 
     "description": "Adaptor for Z-Wave Binary Sensor"
 }
